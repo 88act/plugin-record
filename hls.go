@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -32,14 +33,23 @@ func NewHLSRecorder() (r *HLSRecorder) {
 
 func (h *HLSRecorder) Start(streamPath string) error {
 	h.ID = streamPath + "/hls"
+	fmt.Println("开始------Start -", h.ID)
+	fmt.Println("开始------SUBTYPE_RAW -", SUBTYPE_RAW)
 	return h.start(h, streamPath, SUBTYPE_RAW)
 }
 func (r *HLSRecorder) Close() (err error) {
 	if r.File != nil {
+
 		inf := hls.PlaylistInf{
 			Duration: float64(r.tsLastTime-r.tsStartTime) / 1000,
 			Title:    r.tsTitle,
 		}
+		fmt.Println("停止录制 r.Stream.Path  === ", r.Stream.Path)
+		pathName := strings.Split(r.Stream.Path, "/")
+		if len(pathName) > 0 {
+			inf.Title = pathName[len(pathName)-1] + "/" + inf.Title
+		}
+		fmt.Println("停止录制======>Duration =%s, FilePath =%s, Title =%s ", inf.Duration, inf.FilePath, inf.Title)
 		r.playlist.WriteInf(inf)
 		r.tsStartTime = 0
 		err = r.File.Close()
@@ -56,7 +66,8 @@ func (h *HLSRecorder) OnEvent(event any) {
 	switch v := event.(type) {
 	case *HLSRecorder:
 		h.BytesPool = make(util.BytesPool, 17)
-		if h.Writer, err = h.Recorder.CreateFile(); err != nil {
+		fmt.Println("===== HLS Recorder) OnEvent======>CreateFile ===   ", h.Recorder.filePath, h.Recorder.Ext)
+		if h.Writer, err = h.Recorder.CreateFileM3u8(); err != nil {
 			return
 		}
 		h.SetIO(h.Writer)
@@ -75,7 +86,7 @@ func (h *HLSRecorder) OnEvent(event any) {
 	case AudioFrame:
 		if h.tsStartTime == 0 {
 			h.tsStartTime = v.AbsTime
-		} 
+		}
 		h.tsLastTime = v.AbsTime
 		h.Recorder.OnEvent(event)
 		pes := &mpegts.MpegtsPESFrame{
@@ -117,6 +128,8 @@ func (h *HLSRecorder) OnEvent(event any) {
 func (h *HLSRecorder) CreateFile() (fw FileWr, err error) {
 	h.tsTitle = fmt.Sprintf("%d.ts", time.Now().Unix())
 	filePath := filepath.Join(h.Stream.Path, h.tsTitle)
+	fmt.Println("创建一个新的ts文件 , h.tsTitle = ", h.tsTitle)
+	fmt.Println("创建一个新的ts文件 , h.Stream.Path= ", h.Stream.Path)
 	fw, err = h.CreateFileFn(filePath, false)
 	if err != nil {
 		h.Error("create file", zap.String("path", filePath), zap.Error(err))

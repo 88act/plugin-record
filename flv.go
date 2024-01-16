@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -168,6 +169,8 @@ func (r *FLVRecorder) OnEvent(event any) {
 		if r.duration = int64(absTime); r.Fragment > 0 && check && time.Duration(r.duration)*time.Millisecond >= r.Fragment {
 			r.Close()
 			r.Offset = 0
+
+			fmt.Println("====222= FLV  Recorder) OnEvent======>CreateFile ===   ", r.Recorder.filePath, r.Recorder.Ext)
 			if file, err := r.CreateFile(); err == nil {
 				r.File = file
 				file.Write(codec.FLVHeader)

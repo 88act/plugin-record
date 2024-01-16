@@ -2,6 +2,7 @@ package record
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strconv"
@@ -33,9 +34,11 @@ func (r *Recorder) GetRecorder() *Recorder {
 	return r
 }
 
-func (r *Recorder) CreateFile() (f FileWr, err error) {
-	r.filePath = r.getFileName(r.Stream.Path) + r.Ext
+func (r *Recorder) CreateFileM3u8() (f FileWr, err error) {
+	r.filePath = r.Stream.Path + r.Ext
 	f, err = r.CreateFileFn(r.filePath, r.append)
+
+	fmt.Println("创建文件 CreateFileM3u8  r.filePath =", r.filePath)
 	logFields := []zap.Field{zap.String("path", r.filePath)}
 	if fw, ok := f.(*FileWriter); ok && r.Config != nil {
 		if r.Config.WriteBufferSize > 0 {
@@ -45,10 +48,32 @@ func (r *Recorder) CreateFile() (f FileWr, err error) {
 		}
 	}
 	if err == nil {
-		r.Info("create file", logFields...)
+		r.Info("创建文件 CreateFileM3u8", logFields...)
 	} else {
 		logFields = append(logFields, zap.Error(err))
-		r.Error("create file", logFields...)
+		r.Error("创建文件4444 create file", logFields...)
+	}
+	return
+}
+
+func (r *Recorder) CreateFile() (f FileWr, err error) {
+	r.filePath = r.getFileName(r.Stream.Path) + r.Ext
+	f, err = r.CreateFileFn(r.filePath, r.append)
+	//fmt.Println("创建文件2222222 r.filePath =", r.)
+	fmt.Println("创建文件2222222 r.filePath =", r.filePath)
+	logFields := []zap.Field{zap.String("path", r.filePath)}
+	if fw, ok := f.(*FileWriter); ok && r.Config != nil {
+		if r.Config.WriteBufferSize > 0 {
+			logFields = append(logFields, zap.Int("bufferSize", r.Config.WriteBufferSize))
+			fw.bufw = bufio.NewWriterSize(fw.Writer, r.Config.WriteBufferSize)
+			fw.Writer = fw.bufw
+		}
+	}
+	if err == nil {
+		r.Info("创建文件333333 create file", logFields...)
+	} else {
+		logFields = append(logFields, zap.Error(err))
+		r.Error("创建文件4444 create file", logFields...)
 	}
 	return
 }
@@ -67,8 +92,14 @@ func (r *Recorder) getFileName(streamPath string) (filename string) {
 
 func (r *Recorder) start(re IRecorder, streamPath string, subType byte) (err error) {
 	err = plugin.Subscribe(streamPath, re)
+
+	fmt.Println("订阅一个流--- streamPath =", streamPath)
+	fmt.Println("订阅一个流-- re- =", re)
+	fmt.Println("订阅一个流--  r.ID =", r.ID)
+	fmt.Println("订阅一个流-- subType  =", subType)
 	if err == nil {
 		if _, loaded := RecordPluginConfig.recordings.LoadOrStore(r.ID, re); loaded {
+			fmt.Println(" 已存在 的 录制流 ErrRecordExist  ", r.ID)
 			return ErrRecordExist
 		}
 		r.Closer = re
@@ -99,10 +130,14 @@ func (r *Recorder) cut(absTime uint32) {
 // }
 
 func (r *Recorder) OnEvent(event any) {
+	//fmt.Println("OnEvent 事件 =====event=", event)
 	switch v := event.(type) {
 	case IRecorder:
+		fmt.Println("录制  =====event=", event)
 		if file, err := r.Spesific.(IRecorder).CreateFile(); err == nil {
+
 			r.File = file
+			fmt.Println("录制  filePath", r.filePath)
 			r.Spesific.OnEvent(file)
 		} else {
 			r.Stop(zap.Error(err))
